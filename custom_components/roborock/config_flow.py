@@ -38,15 +38,19 @@ from . import RoborockConfigEntry
 from .const import (
     CONF_BASE_URL,
     CONF_ENTRY_CODE,
+    CONF_MAP_COLORS,
+    CONF_PATH_COLOR,
     CONF_SHOW_BACKGROUND,
     CONF_SHOW_ROOMS,
     CONF_SHOW_WALLS,
     CONF_USER_DATA,
     DEFAULT_DRAWABLES,
+    DEFAULT_PATH_COLOR,
     DOMAIN,
     DRAWABLES,
     REGION_OPTIONS,
 )
+from .map_colors import normalize_hex_color
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -243,12 +247,30 @@ class RoborockOptionsFlowHandler(OptionsFlowWithReload):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the map object drawable options."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
-            self.options[CONF_SHOW_BACKGROUND] = user_input.pop(CONF_SHOW_BACKGROUND)
-            self.options[CONF_SHOW_ROOMS] = user_input.pop(CONF_SHOW_ROOMS)
-            self.options[CONF_SHOW_WALLS] = user_input.pop(CONF_SHOW_WALLS)
-            self.options.setdefault(DRAWABLES, {}).update(user_input)
-            return self.async_create_entry(title="", data=self.options)
+            try:
+                path_color = normalize_hex_color(user_input.get(CONF_PATH_COLOR))
+            except ValueError:
+                errors[CONF_PATH_COLOR] = "invalid_hex_color"
+            else:
+                self.options[CONF_SHOW_BACKGROUND] = user_input.pop(
+                    CONF_SHOW_BACKGROUND
+                )
+                self.options[CONF_SHOW_ROOMS] = user_input.pop(CONF_SHOW_ROOMS)
+                self.options[CONF_SHOW_WALLS] = user_input.pop(CONF_SHOW_WALLS)
+                user_input.pop(CONF_PATH_COLOR, None)
+                self.options.setdefault(DRAWABLES, {}).update(user_input)
+                if path_color:
+                    self.options.setdefault(CONF_MAP_COLORS, {})[
+                        CONF_PATH_COLOR
+                    ] = path_color
+                else:
+                    self.options.get(CONF_MAP_COLORS, {}).pop(CONF_PATH_COLOR, None)
+                    if not self.options.get(CONF_MAP_COLORS):
+                        self.options.pop(CONF_MAP_COLORS, None)
+                return self.async_create_entry(title="", data=self.options)
         data_schema = {}
         for drawable, default_value in DEFAULT_DRAWABLES.items():
             data_schema[
@@ -277,7 +299,16 @@ class RoborockOptionsFlowHandler(OptionsFlowWithReload):
                 default=self.config_entry.options.get(CONF_SHOW_WALLS, True),
             )
         ] = bool
+        data_schema[
+            vol.Optional(
+                CONF_PATH_COLOR,
+                default=self.config_entry.options.get(CONF_MAP_COLORS, {}).get(
+                    CONF_PATH_COLOR, DEFAULT_PATH_COLOR
+                ),
+            )
+        ] = str
         return self.async_show_form(
             step_id=DRAWABLES,
             data_schema=vol.Schema(data_schema),
+            errors=errors,
         )
