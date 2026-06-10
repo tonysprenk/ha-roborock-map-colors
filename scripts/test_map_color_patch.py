@@ -66,6 +66,8 @@ def main() -> int:
     require_contains(init_file, "apply_map_parser_palette_patch()")
     require_contains(init_file, "colors=_map_parser_colors_from_options(entry.options),")
     require_contains(init_file, "def _map_parser_colors_from_options(")
+    require_contains(init_file, "path_color = options.get(CONF_PATH_COLOR)")
+    require_contains(init_file, "map_colors = options.get(CONF_MAP_COLORS, {})")
     require_order(init_file, "apply_map_parser_palette_patch()", "async def async_setup(")
 
     print("map color parser patch validation passed")

@@ -67,12 +67,17 @@ def _map_parser_colors_from_options(
     options: Mapping[str, Any],
 ) -> dict[SupportedColor, tuple[int, int, int]]:
     """Return map parser color overrides from config entry options."""
+    path_color = options.get(CONF_PATH_COLOR)
+    if not isinstance(path_color, str) or not path_color.strip():
+        path_color = None
+
     map_colors = options.get(CONF_MAP_COLORS, {})
-    if not isinstance(map_colors, Mapping):
-        return {}
-    path_color = map_colors.get(CONF_PATH_COLOR)
+    if path_color is None and isinstance(map_colors, Mapping):
+        path_color = map_colors.get(CONF_PATH_COLOR)
+
     if not isinstance(path_color, str) or not path_color.strip():
         return {}
+
     try:
         return {SupportedColor.PATH: hex_to_rgb(path_color)}
     except ValueError:

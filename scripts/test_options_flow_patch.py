@@ -32,12 +32,15 @@ def main() -> int:
     require_contains(config_flow, "CONF_PATH_COLOR,")
     require_contains(config_flow, "DEFAULT_PATH_COLOR,")
     require_contains(config_flow, "from .map_colors import normalize_hex_color")
+    require_contains(config_flow, "def _path_color_default(self) -> str:")
     require_contains(config_flow, 'errors[CONF_PATH_COLOR] = "invalid_hex_color"')
-    require_contains(config_flow, "self.options.setdefault(CONF_MAP_COLORS, {})[")
+    require_contains(config_flow, "self.options[CONF_PATH_COLOR] = path_color")
+    require_contains(config_flow, "self.options.pop(CONF_PATH_COLOR, None)")
     require_contains(config_flow, "] = path_color")
     require_contains(config_flow, "self.options.pop(CONF_MAP_COLORS, None)")
     require_contains(config_flow, "vol.Optional(")
     require_contains(config_flow, "CONF_PATH_COLOR,")
+    require_contains(config_flow, "default=self._path_color_default(),")
 
     strings_data = json.loads(strings.read_text(encoding="utf-8"))
     options = strings_data["options"]["step"]["drawables"]

@@ -243,6 +243,20 @@ class RoborockOptionsFlowHandler(OptionsFlowWithReload):
         """Manage the options."""
         return await self.async_step_drawables()
 
+    def _path_color_default(self) -> str:
+        """Return configured path color, accepting current and legacy storage."""
+        path_color = self.config_entry.options.get(CONF_PATH_COLOR)
+        if isinstance(path_color, str):
+            return path_color
+
+        map_colors = self.config_entry.options.get(CONF_MAP_COLORS, {})
+        if isinstance(map_colors, dict):
+            path_color = map_colors.get(CONF_PATH_COLOR)
+            if isinstance(path_color, str):
+                return path_color
+
+        return DEFAULT_PATH_COLOR
+
     async def async_step_drawables(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -263,10 +277,10 @@ class RoborockOptionsFlowHandler(OptionsFlowWithReload):
                 user_input.pop(CONF_PATH_COLOR, None)
                 self.options.setdefault(DRAWABLES, {}).update(user_input)
                 if path_color:
-                    self.options.setdefault(CONF_MAP_COLORS, {})[
-                        CONF_PATH_COLOR
-                    ] = path_color
+                    self.options[CONF_PATH_COLOR] = path_color
+                    self.options.pop(CONF_MAP_COLORS, None)
                 else:
+                    self.options.pop(CONF_PATH_COLOR, None)
                     self.options.get(CONF_MAP_COLORS, {}).pop(CONF_PATH_COLOR, None)
                     if not self.options.get(CONF_MAP_COLORS):
                         self.options.pop(CONF_MAP_COLORS, None)
@@ -302,9 +316,7 @@ class RoborockOptionsFlowHandler(OptionsFlowWithReload):
         data_schema[
             vol.Optional(
                 CONF_PATH_COLOR,
-                default=self.config_entry.options.get(CONF_MAP_COLORS, {}).get(
-                    CONF_PATH_COLOR, DEFAULT_PATH_COLOR
-                ),
+                default=self._path_color_default(),
             )
         ] = str
         return self.async_show_form(

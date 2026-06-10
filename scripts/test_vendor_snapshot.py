@@ -52,8 +52,8 @@ def main() -> int:
     manifest = json.loads((COMPONENT / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("domain") != "roborock":
         fail("manifest domain must be roborock")
-    if manifest.get("version") != "0.1.0":
-        fail("custom component manifest version must be 0.1.0")
+    if manifest.get("version") != "0.1.1":
+        fail("custom component manifest version must be 0.1.1")
 
     requirements = set(manifest.get("requirements", []))
     required = {
