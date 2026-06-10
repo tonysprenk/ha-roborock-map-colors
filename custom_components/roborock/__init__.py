@@ -1,7 +1,7 @@
 """The Roborock component."""
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Mapping
 from datetime import timedelta
 import logging
 from typing import Any
@@ -15,8 +15,8 @@ from roborock import (
 from roborock.data import UserData
 from roborock.devices.device import RoborockDevice
 from roborock.devices.device_manager import UserParams, create_device_manager
-from roborock.map.map_parser import MapParserConfig
 from roborock.mqtt.session import MqttSessionUnauthorized
+from vacuum_map_parser_base.config.color import SupportedColor
 
 from homeassistant.const import CONF_USERNAME, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Event, HomeAssistant
@@ -27,6 +27,8 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_BASE_URL,
+    CONF_MAP_COLORS,
+    CONF_PATH_COLOR,
     CONF_SHOW_BACKGROUND,
     CONF_SHOW_ROOMS,
     CONF_SHOW_WALLS,
@@ -48,6 +50,7 @@ from .coordinator import (
     RoborockWashingMachineUpdateCoordinator,
     RoborockWetDryVacUpdateCoordinator,
 )
+from .map_colors import MapParserConfig, apply_map_parser_palette_patch, hex_to_rgb
 from .models import get_device_info
 from .roborock_storage import CacheStore, async_cleanup_map_storage
 from .services import async_setup_services
@@ -56,6 +59,25 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 SCAN_INTERVAL = timedelta(seconds=30)
 
 _LOGGER = logging.getLogger(__name__)
+
+apply_map_parser_palette_patch()
+
+
+def _map_parser_colors_from_options(
+    options: Mapping[str, Any],
+) -> dict[SupportedColor, tuple[int, int, int]]:
+    """Return map parser color overrides from config entry options."""
+    map_colors = options.get(CONF_MAP_COLORS, {})
+    if not isinstance(map_colors, Mapping):
+        return {}
+    path_color = map_colors.get(CONF_PATH_COLOR)
+    if not isinstance(path_color, str) or not path_color.strip():
+        return {}
+    try:
+        return {SupportedColor.PATH: hex_to_rgb(path_color)}
+    except ValueError:
+        _LOGGER.warning("Ignoring invalid Roborock map path color: %s", path_color)
+        return {}
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -90,6 +112,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RoborockConfigEntry) -> 
                 show_rooms=entry.options.get(CONF_SHOW_ROOMS, True),
                 show_walls=entry.options.get(CONF_SHOW_WALLS, True),
                 map_scale=MAP_SCALE,
+                colors=_map_parser_colors_from_options(entry.options),
             ),
             mqtt_session_unauthorized_hook=lambda: entry.async_start_reauth(hass),
             prefer_cache=False,
